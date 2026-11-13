@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Симулятор ATtiny13A — потактовое выполнение</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="game-page">
+
+  <!-- ═══ НАВИГАЦИЯ ═══ -->
+  <nav class="nav">
+    <a href="index.html" class="nav-logo">🤖 <span>ATtiny13A</span></a>
+    <div class="nav-links">
+      <a href="index.html">← К теории</a>
+      <a href="game.html" class="nav-btn active">🎮 Игра</a>
+    </div>
+  </nav>
+
+  <main class="game-container">
+    <header class="game-header">
+      <h1>⚡ Потактовый симулятор</h1>
+      <p>Нажимай <strong>«Такт»</strong> — генератор остановится, и каждый клик выполнит ровно одну инструкцию.</p>
+    </header>
+
+    <!-- Панель управления -->
+    <div class="control-panel">
+      <div class="freq-slider">
+        <label>⏱️ Частота:</label>
+        <input type="range" id="freqSlider" min="0" max="4" step="1" value="2">
+        <span class="freq-value" id="freqDisplay">1 МГц</span>
+      </div>
+      <div class="btn-group">
+        <button class="btn" id="startBtn">▶ Старт</button>
+        <button class="btn step" id="stepBtn">⏭ Такт</button>
+        <button class="btn" id="pauseBtn">⏸ Пауза</button>
+        <button class="btn reset" id="resetBtn">⟲ Сброс</button>
+      </div>
+    </div>
+
+    <!-- Основная сетка -->
+    <div class="main-grid">
+
+      <!-- Левая колонка -->
+      <div class="card">
+        <h2>🔄 Конвейер <span class="badge-info" id="tickInfo">Такт 0 · PC=0x00</span></h2>
+        <div class="pipeline">
+          <div class="pipe-stage fetch" id="pipeFetch">
+            <span class="pipe-icon">📥</span><span class="pipe-label">Fetch</span>
+            <span class="pipe-code" id="fetchCode">—</span>
+          </div>
+          <div class="pipe-stage decode" id="pipeDecode">
+            <span class="pipe-icon">⚙️</span><span class="pipe-label">Decode</span>
+            <span class="pipe-code" id="decodeCode">—</span>
+          </div>
+          <div class="pipe-stage execute" id="pipeExecute">
+            <span class="pipe-icon">✅</span><span class="pipe-label">Execute</span>
+            <span class="pipe-code" id="executeCode">—</span>
+          </div>
+        </div>
+
+        <h2 style="margin-top:14px;">🧮 Регистры</h2>
+        <div class="reg-grid">
+          <div class="reg-item" id="regDDRB">
+            <div class="reg-name">DDRB</div>
+            <div class="reg-value" id="ddrbVal">0x00</div>
+            <div class="reg-binary" id="ddrbBin">0000 0000</div>
+          </div>
+          <div class="reg-item" id="regPORTB">
+            <div class="reg-name">PORTB</div>
+            <div class="reg-value" id="portbVal">0x00</div>
+            <div class="reg-binary" id="portbBin">0000 0000</div>
+          </div>
+          <div class="reg-item" id="regTCNT0">
+            <div class="reg-name">TCNT0</div>
+            <div class="reg-value" id="tcnt0Val">0</div>
+            <div class="reg-binary" id="tcnt0Bin">0000 0000</div>
+          </div>
+          <div class="reg-item" id="regOCR0A">
+            <div class="reg-name">OCR0A</div>
+            <div class="reg-value" id="ocr0aVal">0</div>
+            <div class="reg-binary" id="ocr0aBin">0000 0000</div>
+          </div>
+        </div>
+        <div class="r16-line">R16 (рабочий): <span id="r16Val">0x00</span></div>
+      </div>
+
+      <!-- Центральная колонка -->
+      <div class="card">
+        <h2>🧠 Память ATtiny13A</h2>
+        <div class="memory-grid">
+          <div class="mem-row">
+            <span class="mem-label">Flash</span>
+            <div class="mem-bar"><div class="mem-fill" id="flashFill" style="width:4%;"></div></div>
+            <span class="badge-info" id="flashCount">42 / 1024</span>
+          </div>
+          <div class="mem-row">
+            <span class="mem-label">SRAM</span>
+            <div class="mem-bar"><div class="mem-fill green" id="sramFill" style="width:9%;"></div></div>
+            <span class="badge-info" id="sramCount">6 / 64</span>
+          </div>
+          <div class="mem-row">
+            <span class="mem-label">EEPROM</span>
+            <div class="mem-bar"><div class="mem-fill orange" id="eepromFill" style="width:0%;"></div></div>
+            <span class="badge-info" id="eepromCount">0 / 64</span>
+          </div>
+        </div>
+
+        <h2 style="margin-top:18px;">💡 Светодиод <span class="badge-info">пин PB0</span></h2>
+        <div class="led-area">
+          <div class="led" id="led"></div>
+          <div class="led-label" id="ledState">ВЫКЛ</div>
+        </div>
+
+        <div class="event-log" id="eventLog">
+          <p>🔵 Система готова. Нажми «Такт» или «Старт».</p>
+        </div>
+      </div>
+
+      <!-- Правая колонка -->
+      <div class="card">
+        <h2>📖 Что происходит?</h2>
+        <div class="info-panel">
+          <p><strong style="color:#7fd4ff;">⏱️ Такт</strong> — наименьшая единица работы процессора. Один такт = одна команда.</p>
+          <p><strong style="color:#ffb347;">⏭ Кнопка «Такт»</strong> — останавливает автоматический генератор и выполняет ровно одну инструкцию. Кликай сколько хочешь — шаг за шагом.</p>
+          <p><strong style="color:#6fcf97;">🔄 Конвейер</strong> — пока команда выполняется, следующая уже декодируется, а третья загружается.</p>
+          <p><strong style="color:#c47aff;">📜 Программа</strong> — 22 инструкции: настройка, включение LED, пауза, выключение, пауза, переход в начало.</p>
+        </div>
+        <div class="hint-box">
+          💡 <strong>Попробуй:</strong> нажимай «Такт» медленно и смотри, как:<br>
+          • на такте 2 — настраивается пин PB0<br>
+          • на такте 4 — загорается светодиод<br>
+          • на такте 13 — гаснет<br>
+          • на такте 22 — программа прыгает в начало
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="game.js"></script>
+</body>
+</html>
